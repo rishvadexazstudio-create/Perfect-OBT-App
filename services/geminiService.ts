@@ -2,6 +2,9 @@
 import { GoogleGenAI } from "@google/genai";
 import { Member } from "../types";
 
+// Declare process globally to prevent TypeScript errors in browser-only environments
+declare var process: any;
+
 // Lazy initialization of the Gemini AI client
 let aiClient: GoogleGenAI | null = null;
 
@@ -13,7 +16,7 @@ const getAiClient = (): GoogleGenAI | null => {
   // 1. Try Vite / Modern Frontend Environment (import.meta.env)
   try {
     // @ts-ignore
-    if (import.meta && import.meta.env && import.meta.env.VITE_API_KEY) {
+    if (import.meta?.env?.VITE_API_KEY) {
       // @ts-ignore
       apiKey = import.meta.env.VITE_API_KEY;
     }
@@ -22,18 +25,19 @@ const getAiClient = (): GoogleGenAI | null => {
   }
 
   // 2. Fallback to process.env (Node/Webpack/Standard)
-  // We access process.env.API_KEY directly inside a try-catch.
-  // Bundlers (like Vite/Webpack) often replace 'process.env.API_KEY' with the actual string value
-  // during build, even if the 'process' object itself is undefined in the browser.
   if (!apiKey) {
     try {
-      // @ts-ignore
-      if (process.env.API_KEY) {
-        // @ts-ignore
+      // Check if process exists and has env
+      if (typeof process !== 'undefined' && process.env?.API_KEY) {
+        apiKey = process.env.API_KEY;
+      }
+      // Fallback for bundlers that replace process.env.API_KEY string directly
+      // even if process object is technically undefined at runtime
+      else if (process?.env?.API_KEY) {
         apiKey = process.env.API_KEY;
       }
     } catch (e) {
-      // Ignore ReferenceError if process is not defined and not replaced
+      // Ignore ReferenceErrors
     }
   }
 

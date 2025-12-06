@@ -1,9 +1,9 @@
-import React, { Component, ErrorInfo, ReactNode } from 'react';
+import React from 'react';
 import ReactDOM from 'react-dom/client';
-import App from './App';
+import App from '../App';
 
 interface ErrorBoundaryProps {
-  children: ReactNode;
+  children?: React.ReactNode;
 }
 
 interface ErrorBoundaryState {
@@ -12,14 +12,14 @@ interface ErrorBoundaryState {
 }
 
 // Error Boundary to catch runtime errors (prevents blank screen)
-class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   state: ErrorBoundaryState = { hasError: false, error: null };
 
-  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+  static getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
   }
 
-  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("Application Error:", error, errorInfo);
   }
 
@@ -35,7 +35,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             </div>
             <button 
               onClick={() => {
-                localStorage.clear(); // Option to clear storage if data corruption is the cause
+                localStorage.clear(); 
                 window.location.reload();
               }}
               className="w-full py-3 bg-gray-900 text-white rounded-lg font-bold hover:bg-black transition-colors"
@@ -51,16 +51,17 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 }
 
-const rootElement = document.getElementById('root');
-if (!rootElement) {
-  throw new Error("Could not find root element to mount to");
+// Check if we are in a browser environment before trying to render
+if (typeof document !== 'undefined') {
+  const rootElement = document.getElementById('root');
+  if (rootElement) {
+    const root = ReactDOM.createRoot(rootElement);
+    root.render(
+      <React.StrictMode>
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
+      </React.StrictMode>
+    );
+  }
 }
-
-const root = ReactDOM.createRoot(rootElement);
-root.render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  </React.StrictMode>
-);
