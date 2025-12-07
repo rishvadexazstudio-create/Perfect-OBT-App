@@ -9,11 +9,23 @@ const USERS_KEY = 'obt_users_v2';
 const CURRENT_USER_KEY = 'obt_current_user_v2';
 const MESSAGES_KEY = 'obt_messages_v2';
 
+// Helper for safe parsing to prevent app crashes on corrupted data
+const safeParse = <T>(key: string, fallback: T): T => {
+  try {
+    const item = localStorage.getItem(key);
+    return item ? JSON.parse(item) : fallback;
+  } catch (error) {
+    console.error(`Error parsing ${key} from localStorage:`, error);
+    // Optionally clear the corrupted key to self-heal
+    // localStorage.removeItem(key); 
+    return fallback;
+  }
+};
+
 // --- District Member Management ---
 
 export const getMembers = (district?: string, category?: UserCategory): Member[] => {
-  const membersStr = localStorage.getItem(MEMBERS_KEY);
-  const members: Member[] = membersStr ? JSON.parse(membersStr) : [];
+  const members = safeParse<Member[]>(MEMBERS_KEY, []);
   
   let filtered = members;
 
@@ -29,9 +41,7 @@ export const getMembers = (district?: string, category?: UserCategory): Member[]
 };
 
 export const saveMember = (member: Member): void => {
-  // We need to fetch ALL members to append/update, not just filtered ones
-  const membersStr = localStorage.getItem(MEMBERS_KEY);
-  const members: Member[] = membersStr ? JSON.parse(membersStr) : [];
+  const members = safeParse<Member[]>(MEMBERS_KEY, []);
   
   const index = members.findIndex(m => m.id === member.id);
   if (index >= 0) {
@@ -43,24 +53,17 @@ export const saveMember = (member: Member): void => {
 };
 
 export const deleteMember = (id: string): void => {
-  const membersStr = localStorage.getItem(MEMBERS_KEY);
-  const members: Member[] = membersStr ? JSON.parse(membersStr) : [];
+  const members = safeParse<Member[]>(MEMBERS_KEY, []);
   
   const newMembers = members.filter(m => m.id !== id);
   localStorage.setItem(MEMBERS_KEY, JSON.stringify(newMembers));
 };
 
-// Updated to support category filtering
 export const getDistrictStats = (category?: UserCategory) => {
-  // We get ALL members first, then calculate stats based on category
-  const membersStr = localStorage.getItem(MEMBERS_KEY);
-  const members: Member[] = membersStr ? JSON.parse(membersStr) : [];
+  const members = safeParse<Member[]>(MEMBERS_KEY, []);
 
   const stats: Record<string, number> = {};
   TN_DISTRICTS.forEach(d => {
-    // Count members in the district that match the category (if provided)
-    // If category is undefined (global admin view), it counts all.
-    // However, for strict isolation, non-admins ALWAYS pass a category.
     const count = members.filter(m => 
       m.district === d && 
       (!category || m.category === category)
@@ -73,8 +76,7 @@ export const getDistrictStats = (category?: UserCategory) => {
 // --- Special Teams Management (State OBT & Master OBT) ---
 
 const getSpecialTeam = (key: string): Member[] => {
-  const str = localStorage.getItem(key);
-  return str ? JSON.parse(str) : [];
+  return safeParse<Member[]>(key, []);
 };
 
 const saveSpecialMember = (key: string, member: Member): void => {
@@ -106,8 +108,12 @@ export const deleteMasterObtMember = (id: string) => deleteSpecialMember(MASTER_
 // --- User (Auth) Management ---
 
 export const getAllUsers = (): User[] => {
-  const usersStr = localStorage.getItem(USERS_KEY);
-  return usersStr ? JSON.parse(usersStr) : [];
+  const users = safeParse<User[]>(USERS_KEY, []);
+  // Data Migration: Ensure 'category' exists for legacy users to prevent crashes
+  return users.map(u => ({
+    ...u,
+    category: u.category || UserCategory.COLLEGE_BOYS
+  }));
 };
 
 export const findUserByPhone = (phone: string): User | undefined => {
@@ -128,8 +134,15 @@ export const registerUser = (user: User): void => {
 };
 
 export const getCurrentUser = (): User | null => {
-  const userStr = localStorage.getItem(CURRENT_USER_KEY);
-  return userStr ? JSON.parse(userStr) : null;
+  const user = safeParse<User | null>(CURRENT_USER_KEY, null);
+  if (user) {
+    // Ensure category exists on the current user object
+    if (!user.category) {
+      user.category = UserCategory.COLLEGE_BOYS;
+    }
+    return user;
+  }
+  return null;
 };
 
 export const setCurrentUser = (user: User | null): void => {
@@ -188,8 +201,7 @@ export const rejectUser = (userId: string): void => {
 // --- Messages / Board Management ---
 
 export const getMessages = (): TeamMessage[] => {
-  const str = localStorage.getItem(MESSAGES_KEY);
-  return str ? JSON.parse(str) : [];
+  return safeParse<TeamMessage[]>(MESSAGES_KEY, []);
 };
 
 export const addMessage = (msg: TeamMessage): void => {
